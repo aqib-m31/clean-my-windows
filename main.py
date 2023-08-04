@@ -3,7 +3,7 @@ from shutil import rmtree
 from time import time
 from re import search, IGNORECASE
 from sys import exit
-from platform import system
+from colorama import Fore
 
 from paths import (
     USER_TEMP_DIR,
@@ -14,12 +14,12 @@ from paths import (
 
 
 def main() -> None:
-    print("========== CLEAN MY WINDOWS ==========\n")
+    print(Fore.LIGHTGREEN_EX + "========== CLEAN MY WINDOWS ==========")
 
     # Make sure script is run on a windows machine
-    check_os()
+    check_os(os.name)
 
-    print("Scanning for junk...", end="\t", flush=True)
+    print(Fore.LIGHTYELLOW_EX + "🔎 Scanning for junk...", end="\t", flush=True)
 
     # Scan for junk
     local_cache_dirs = get_cache_dirs(LOCAL_DIR)
@@ -35,22 +35,21 @@ def main() -> None:
         },
         multiple={"Local Cache Dirs": local_cache_dirs},
     )
-
-    print("[DONE]\n")
-
+    print(Fore.LIGHTGREEN_EX + "[DONE]\n")
     display_size(sizes)
 
     # Ask user whether to clean cache or not
     if prompt_clean_cache():
         # Clean cache and print stats
         size, time_elapsed = clean_all(cache_dirs)
+        print(Fore.LIGHTCYAN_EX + "\n📊 Stats")
         print(
-            f"Total space freed: {get_formatted_size(size)}\nTime Elapsed: {(time_elapsed * 1000):.2f}ms"
+            f"{Fore.LIGHTGREEN_EX}Total space freed: {get_formatted_size(size)}\nTime Elapsed: {(time_elapsed * 1000):.2f}ms"
         )
     else:
-        print("Okay :)")
+        print(f"\n{Fore.LIGHTGREEN_EX}Okay! Operation halted {Fore.LIGHTYELLOW_EX}^_^")
 
-    input("Press any key to [EXIT]")
+    input(f"\n{Fore.LIGHTMAGENTA_EX}Press any key to {Fore.LIGHTRED_EX}[EXIT]" + Fore.RESET)
 
 
 def get_dir_size(dir_path: str) -> int:
@@ -95,7 +94,13 @@ def prompt_clean_cache() -> bool:
     choice = ""
 
     while choice not in ("Y", "N"):
-        choice = input("Clean your cache? [Y | N]: ").strip().upper()
+        choice = (
+            input(
+                f"{Fore.LIGHTGREEN_EX}Would you like to clean the cache? [Y | N]: {Fore.LIGHTYELLOW_EX}"
+            )
+            .strip()
+            .upper()
+        )
 
     return choice == "Y"
 
@@ -114,7 +119,7 @@ def clean_cache(dir_path: str) -> None:
         dirs = os.listdir(dir_path)
 
         if not dirs:
-            print("No directory to clean.")
+            print(Fore.LIGHTMAGENTA_EX + "No directory to clean.")
             return
         for file in dirs:
             path = os.path.join(dir_path, file)
@@ -122,20 +127,22 @@ def clean_cache(dir_path: str) -> None:
             try:
                 if not os.path.isdir(path):
                     file_size = os.path.getsize(path)
-                    print(f"Removing {path}", end="\t")
+                    print(f"{Fore.LIGHTYELLOW_EX}---> Removing {path}", end="  ", flush=True)
                     os.remove(path)
                 else:
                     file_size = get_dir_size(path)
-                    print(f"Removing {path}", end="\t")
+                    print(f"{Fore.LIGHTYELLOW_EX}---> Removing {path}", end="  ", flush=True)
                     rmtree(path)
             except PermissionError:
                 stats["Access Denied"].append(path)
-                print("[ACCESS DENIED]")
+                print(Fore.LIGHTRED_EX + "[ACCESS DENIED]")
             else:
-                print("[DONE]")
+                print(Fore.LIGHTGREEN_EX + "[DONE]")
                 stats["Cleaned Size"] += file_size
     except PermissionError:
-        print(f"Abort! Couldn't clean {dir_path}!\t[ACCESS DENIED]")
+        print(
+            f"{Fore.LIGHTRED_EX}Abort! Couldn't clean {Fore.LIGHTYELLOW_EX}{dir_path}!  {Fore.LIGHTRED_EX}[ACCESS DENIED]"
+        )
         return stats
 
     return stats
@@ -183,9 +190,9 @@ def display_size(sizes: dict) -> None:
     :param sizes: Dictionary having label as key and size as value
     :type sizes: dict
     """
-    print(">>> SCAN RESULTS:")
+    print(Fore.LIGHTCYAN_EX + "📁 SCAN RESULTS")
     for label, size in sizes.items():
-        print(f"\t{label} Size: {size}")
+        print(f"{Fore.LIGHTYELLOW_EX}|-> {Fore.LIGHTCYAN_EX}{label} Size: {Fore.LIGHTRED_EX}{size}")
     print()
 
 
@@ -243,10 +250,15 @@ def clean_all(dirs: list) -> tuple:
     return (cleaned_size, end_time - start_time)
 
 
-def check_os() -> None:
-    """Exit if the system is not a windows machine."""
-    if system().lower() != "windows":
-        exit("This is not a windows machine!")
+def check_os(os_name: str) -> None:
+    """
+    Exit if the system is not a windows machine.
+    
+    :param os_name: Name of operating system
+    :type os_name: str
+    """
+    if os_name != "nt":
+        exit(Fore.LIGHTRED_EX + "This is not a windows machine!" + Fore.RESET)
 
 
 if __name__ == "__main__":
