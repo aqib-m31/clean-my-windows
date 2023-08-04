@@ -1,24 +1,47 @@
-import os
-import shutil
-import time
+from os import walk, path, remove, listdir
+from shutil import rmtree
+from time import time
+from re import search, IGNORECASE
+
+from paths import (
+    USER_TEMP_DIR,
+    SYSTEM_TEMP_DIR,
+    PREFETCH_DIR,
+    LOCAL_DIR,
+)
 
 
 def main() -> None:
+    print("=== CLEAN MY WINDOWS ===")
     print("Scanning for junk...\t")
 
-    # TODO: Scan for junk
-    TEMP_DIR = os.path.expanduser(r"~\AppData\Local\Temp")
+    # Scan for junk
+    local_cache_dirs = get_cache_dirs(LOCAL_DIR)
+    cache_dirs = [USER_TEMP_DIR, SYSTEM_TEMP_DIR, PREFETCH_DIR] + local_cache_dirs
 
-    # Calculate size and print cache size
-    temp_cache_size = get_dir_size(TEMP_DIR)
-    print(f"Cache size: {get_formatted_size(temp_cache_size)}")
+    # Get size of junk and display it
+    sizes = get_sizes(
+        {
+            "User Temp": USER_TEMP_DIR,
+            "System Temp": SYSTEM_TEMP_DIR,
+            "Prefetch": PREFETCH_DIR,
+            "Local Cache Dirs": LOCAL_DIR,
+        },
+        multiple={"Local Cache Dirs": local_cache_dirs},
+    )
+    display_size(sizes)
 
-    # TODO: Ask user whether to clean cache or not
+    # Ask user whether to clean cache or not
     if prompt_clean_cache():
-        # TODO: Clean cache
-        clean_cache(TEMP_DIR)
+        # Clean cache and print stats
+        size, time_elapsed = clean_all(cache_dirs)
+        print(
+            f"Total space freed: {get_formatted_size(size)}\nTime Elapsed: {(time_elapsed * 1000):.2f}ms"
+        )
     else:
         print("Okay :)")
+
+    input("Press any key to EXIT")
 
 
 def get_dir_size(dir_path: str) -> int:
@@ -32,8 +55,8 @@ def get_dir_size(dir_path: str) -> int:
     """
     size = 0
 
-    for root, _, files in os.walk(dir_path):
-        size += sum(os.path.getsize(os.path.join(root, name)) for name in files)
+    for root, _, files in walk(dir_path):
+        size += sum(path.getsize(path.join(root, name)) for name in files)
 
     return size
 
@@ -75,39 +98,138 @@ def clean_cache(dir_path: str) -> None:
     :param dir_path: Path of folder to be cleaned
     :type dir_path: str
     """
-    cleaned_size = 0
-    start_time = time.time()
+
+    stats = {"Access Denied": [], "Cleaned Size": 0}
 
     try:
-        dirs = os.listdir(dir_path)
+        dirs = listdir(dir_path)
 
         if not dirs:
             print("No directory to clean.")
             return
         for file in dirs:
-            path = os.path.join(dir_path, file)
+            path = path.join(dir_path, file)
 
             try:
-                if not os.path.isdir(path):
-                    file_size = os.path.getsize(path)
+                if not path.isdir(path):
+                    file_size = path.getsize(path)
                     print(f"Removing {path}", end="\t")
-                    os.remove(path)
+                    remove(path)
                 else:
                     file_size = get_dir_size(path)
                     print(f"Removing {path}", end="\t")
-                    shutil.rmtree(path)
+                    rmtree(path)
             except PermissionError:
-                print("ACCESS DENIED")
+                stats["Access Denied"].append(path)
+                print("[ACCESS DENIED]")
             else:
                 print("[DONE]")
-                cleaned_size += file_size
+                stats["Cleaned Size"] += file_size
     except PermissionError:
-        print(f"Abort! Couldn't clean {dir_path}! ACCESS DENIED")
+        print(f"Abort! Couldn't clean {dir_path}!\t[ACCESS DENIED]")
+        return stats
 
-    end_time = time.time()
+    return stats
 
-    print(f"Success!\nCleaned {get_formatted_size(cleaned_size)}.")
-    print(f"Time Elapsed: {(end_time - start_time) * 1000:.2f}ms")
+
+def get_cache_dirs(dir_path: str) -> list:
+    """
+    Return list of all the paths in which regex pattern is found.
+
+    :param dir_path: Path of a directory
+    :type dir_path: str
+    :return: A list of cache directories
+    :rtype: list
+    """
+    cache_dirs = set()
+
+    for root, _, _ in walk(dir_path):
+        if matches := search(r"((?:.+)\\(?:cache2?))\\", root, IGNORECASE):
+            cache_dirs.add(matches.group(1))
+
+    return list(cache_dirs)
+
+
+def get_dirs_size(dir_paths: list) -> int:
+    """
+    Return size of a list of directories.
+
+    :param dir_paths: List of directory paths
+    :type dir_paths: list
+    :return: Size of directories in dir_paths
+    :rtype: int
+    """
+    size = 0
+
+    for dir in dir_paths:
+        size += get_dir_size(dir)
+
+    return size
+
+
+def display_size(sizes: dict) -> None:
+    """
+    Display sizes.
+
+    :param sizes: Dictionary having label as key and size as value
+    :type sizes: dict
+    """
+    for label, size in sizes.items():
+        print(f"{label} Size: {size}")
+
+
+def get_sizes(paths: dict, multiple={}) -> dict:
+    """
+    Return a dictionary of sizes.
+
+    :param paths: A dictionary having a path associated with a label (key)
+    :type paths: dict
+    :param multiple: A dictionary of 'paths dict keys' whose values contains list of cache directories
+    :type multiple: dict
+    :return: Sizes of the directories
+    :rtype: dict
+    """
+    sizes = {}
+
+    total_size = 0
+
+    for label, path in paths.items():
+        if label in multiple:
+            size = get_dirs_size(multiple[label])
+        else:
+            size = get_dir_size(path)
+
+        sizes[label] = get_formatted_size(size)
+        total_size += size
+
+    sizes["Total"] = get_formatted_size(total_size)
+
+    return sizes
+
+
+def clean_all(dirs: list) -> tuple:
+    """
+    Clean all directories and return space freed and time elapsed.
+
+    :param dirs: List of directories to be cleaned
+    :type dirs: list
+    :return: A tuple of freed space and time elapsed
+    :rtype: tuple
+    """
+    cleaned_size = 0
+    start_time = time()
+
+    with open("log.txt", "w") as log:
+        for dir in dirs:
+            stats = clean_cache(dir)
+            cleaned_size += stats["Cleaned Size"]
+
+            for path in stats["Access Denied"]:
+                log.write(f"[ACCESS DENIED] - {path}\n")
+
+    end_time = time()
+
+    return (cleaned_size, end_time - start_time)
 
 
 if __name__ == "__main__":
