@@ -1,4 +1,4 @@
-from os import walk, path, remove, listdir
+import os
 from shutil import rmtree
 from time import time
 from re import search, IGNORECASE
@@ -14,12 +14,12 @@ from paths import (
 
 
 def main() -> None:
-    print("========== CLEAN MY WINDOWS ==========")
+    print("========== CLEAN MY WINDOWS ==========\n")
 
     # Make sure script is run on a windows machine
     check_os()
 
-    print("Scanning for junk...\t")
+    print("Scanning for junk...", end="\t", flush=True)
 
     # Scan for junk
     local_cache_dirs = get_cache_dirs(LOCAL_DIR)
@@ -35,6 +35,9 @@ def main() -> None:
         },
         multiple={"Local Cache Dirs": local_cache_dirs},
     )
+
+    print("[DONE]\n")
+
     display_size(sizes)
 
     # Ask user whether to clean cache or not
@@ -47,7 +50,7 @@ def main() -> None:
     else:
         print("Okay :)")
 
-    input("Press any key to EXIT")
+    input("Press any key to [EXIT]")
 
 
 def get_dir_size(dir_path: str) -> int:
@@ -61,8 +64,8 @@ def get_dir_size(dir_path: str) -> int:
     """
     size = 0
 
-    for root, _, files in walk(dir_path):
-        size += sum(path.getsize(path.join(root, name)) for name in files)
+    for root, _, files in os.walk(dir_path):
+        size += sum(os.path.getsize(os.path.join(root, name)) for name in files)
 
     return size
 
@@ -108,19 +111,19 @@ def clean_cache(dir_path: str) -> None:
     stats = {"Access Denied": [], "Cleaned Size": 0}
 
     try:
-        dirs = listdir(dir_path)
+        dirs = os.listdir(dir_path)
 
         if not dirs:
             print("No directory to clean.")
             return
         for file in dirs:
-            path = path.join(dir_path, file)
+            path = os.path.join(dir_path, file)
 
             try:
-                if not path.isdir(path):
-                    file_size = path.getsize(path)
+                if not os.path.isdir(path):
+                    file_size = os.path.getsize(path)
                     print(f"Removing {path}", end="\t")
-                    remove(path)
+                    os.remove(path)
                 else:
                     file_size = get_dir_size(path)
                     print(f"Removing {path}", end="\t")
@@ -149,7 +152,7 @@ def get_cache_dirs(dir_path: str) -> list:
     """
     cache_dirs = set()
 
-    for root, _, _ in walk(dir_path):
+    for root, _, _ in os.walk(dir_path):
         if matches := search(r"((?:.+)\\(?:cache2?))\\", root, IGNORECASE):
             cache_dirs.add(matches.group(1))
 
@@ -180,8 +183,10 @@ def display_size(sizes: dict) -> None:
     :param sizes: Dictionary having label as key and size as value
     :type sizes: dict
     """
+    print(">>> SCAN RESULTS:")
     for label, size in sizes.items():
-        print(f"{label} Size: {size}")
+        print(f"\t{label} Size: {size}")
+    print()
 
 
 def get_sizes(paths: dict, multiple={}) -> dict:
