@@ -2,6 +2,8 @@ from os import walk, path, remove, listdir
 from shutil import rmtree
 from time import time
 from re import search, IGNORECASE
+from sys import exit
+from platform import system
 
 from paths import (
     USER_TEMP_DIR,
@@ -12,7 +14,11 @@ from paths import (
 
 
 def main() -> None:
-    print("=== CLEAN MY WINDOWS ===")
+    print("========== CLEAN MY WINDOWS ==========")
+
+    # Make sure script is run on a windows machine
+    check_os()
+
     print("Scanning for junk...\t")
 
     # Scan for junk
@@ -230,6 +236,12 @@ def clean_all(dirs: list) -> tuple:
     end_time = time()
 
     return (cleaned_size, end_time - start_time)
+
+
+def check_os() -> None:
+    """Exit if the system is not a windows machine."""
+    if system().lower() != "windows":
+        exit("This is not a windows machine!")
 
 
 if __name__ == "__main__":
