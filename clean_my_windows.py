@@ -23,7 +23,7 @@ def main() -> None:
 
     # Scan for junk
     local_cache_dirs = get_cache_dirs(LOCAL_DIR)
-    cache_dirs = [USER_TEMP_DIR, SYSTEM_TEMP_DIR, PREFETCH_DIR] + local_cache_dirs
+    cache_dirs = local_cache_dirs + [USER_TEMP_DIR, SYSTEM_TEMP_DIR, PREFETCH_DIR]
 
     # Get size of junk and display it
     sizes = get_sizes(
