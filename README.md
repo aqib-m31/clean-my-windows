@@ -14,7 +14,7 @@ Clean My Windows is a python script developed for CS50P's final project. The pro
 - `colorama`
 
 ### How to Run
-1. Clone the repository `git clone https://github.com/aqib-m31/clean-my-windows`
+1. Clone the repository `git clone https://github.com/aqib-m31/clean-my-windows.git`
 2. Install the required library using `pip install -r requirements.txt`.
 3. Run the script using `python clean_my_windows.py`.
 
